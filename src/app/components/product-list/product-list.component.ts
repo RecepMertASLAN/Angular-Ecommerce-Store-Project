@@ -1,3 +1,4 @@
+import { keyframes } from '@angular/animations';
 import { ThisReceiver } from '@angular/compiler';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
@@ -11,10 +12,15 @@ import { ProductService } from 'src/app/services/product.service';
 })
 export class ProductListComponent implements OnInit {
 
-  products: Product[];
-  currentCategoryId: number;
-  searchMode: boolean;
+  products: Product[] = [];
+  currentCategoryId: number = 1;
+  searchMode: boolean = false;
 
+  thePageNumber: number = 1;
+  thePageSize: number = 5;
+  theTotalElements: number = 0;
+  previousCategoryId: number = 1;
+  previousKeyWord: string = null;
 
   /**
    * 
@@ -43,11 +49,15 @@ export class ProductListComponent implements OnInit {
     }
   }
 
+  // For Search Operation
   handleSearchProducts() {
     const theKeyword = this.route.snapshot.paramMap.get('keyword'); // getting the keyword user entered
-
-    this.productService.searchProducts(theKeyword).subscribe(
-      data => { this.products = data; }
+    if (this.previousKeyWord != theKeyword) {
+      this.thePageNumber = 1;
+    }
+    this.previousKeyWord = theKeyword;
+    this.productService.searchProductListPagination(this.thePageNumber - 1, this.thePageSize, theKeyword).subscribe(
+      this.processResult()
     )
   }
 
@@ -61,10 +71,29 @@ export class ProductListComponent implements OnInit {
       this.currentCategoryId = 1;
     }
 
+    if (this.previousCategoryId != this.currentCategoryId) {
+      this.thePageNumber = 1;
+    }
 
-    this.productService.getProductList(this.currentCategoryId).subscribe(
-      data => { this.products = data; }
-    )
+    this.previousCategoryId = this.currentCategoryId;
+
+
+    this.productService.getProductListPagination(this.thePageNumber - 1, this.thePageSize, this.currentCategoryId).subscribe(this.processResult())
+  }
+
+  processResult() {
+    return data => {
+      this.products = data._embedded.products;
+      this.thePageNumber = data.page.number + 1;
+      this.thePageSize = data.page.size;
+      this.theTotalElements = data.page.totalElements;
+    }
+  }
+
+  updatePageSize(pageSize: number) {
+    this.thePageSize = pageSize;
+    this.thePageNumber = 1;
+    this.listProduct();
   }
 
 }
